@@ -43,6 +43,7 @@ import org.eclipse.m2e.core.ui.dialogs.AbstractMavenDialog;
 import org.eclipse.m2e.editor.MavenEditorPlugin;
 import org.eclipse.m2e.editor.composites.DependencyLabelProvider;
 import org.eclipse.m2e.editor.composites.ListEditorContentProvider;
+import org.eclipse.m2e.editor.internal.PomEdits;
 import org.eclipse.m2e.model.edit.pom.Dependency;
 import org.eclipse.m2e.model.edit.pom.DependencyManagement;
 import org.eclipse.m2e.model.edit.pom.Model;
@@ -66,6 +67,11 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.Tree;
+import org.eclipse.wst.xml.core.internal.provisional.document.IDOMDocument;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.Text;
 
 
 /**
@@ -86,8 +92,6 @@ public class ManageDependenciesDialog extends AbstractMavenDialog {
 
   LinkedList<MavenProject> projectHierarchy;
 
-  final protected EditingDomain editingDomain;
-
   private IStatus status;
   
   private List<Object> originalSelection;
@@ -96,13 +100,12 @@ public class ManageDependenciesDialog extends AbstractMavenDialog {
    * Hierarchy is a LinkedList representing the hierarchy relationship between POM represented by model and its parents.
    * The head of the list should be the child, while the tail should be the root parent, with the others in between.
    */
-  public ManageDependenciesDialog(Shell parent, Model model, LinkedList<MavenProject> hierarchy,
-      EditingDomain editingDomain) {
-    this(parent, model, hierarchy, editingDomain, null);
+  public ManageDependenciesDialog(Shell parent, Model model, LinkedList<MavenProject> hierarchy) {
+    this(parent, model, hierarchy, null);
   }
 
   public ManageDependenciesDialog(Shell parent, Model model, LinkedList<MavenProject> hierarchy,
-      EditingDomain editingDomain, List<Object> selection) {
+      List<Object> selection) {
     super(parent, DIALOG_SETTINGS);
 
     setShellStyle(getShellStyle() | SWT.RESIZE);
@@ -110,7 +113,6 @@ public class ManageDependenciesDialog extends AbstractMavenDialog {
 
     this.model = model;
     this.projectHierarchy = hierarchy;
-    this.editingDomain = editingDomain;
     this.originalSelection = selection;
   }
 
@@ -234,89 +236,79 @@ public class ManageDependenciesDialog extends AbstractMavenDialog {
    */
   protected void computeResult() {
     MavenProject targetPOM = getTargetPOM();
-    IMavenProjectFacade facade = MavenPlugin.getDefault().getMavenProjectManager()
+    IMavenProjectFacade targetFacade = MavenPlugin.getDefault().getMavenProjectManager()
         .getMavenProject(targetPOM.getGroupId(), targetPOM.getArtifactId(), targetPOM.getVersion());
+    MavenProject currentPOM = projectHierarchy.getFirst();
+    IMavenProjectFacade currentFacade = MavenPlugin.getDefault().getMavenProjectManager()
+        .getMavenProject(currentPOM.getGroupId(), currentPOM.getArtifactId(), currentPOM.getVersion());
 
-    /*
-     * Load the target model so we can make modifications to it
-     */
-    Model targetModel = null;
-    if(targetPOM.equals(getProjectHierarchy().getFirst())) {
-      //Editing the same models in both cases
-      targetModel = model;
-    } else {
-      targetModel = loadTargetModel(facade);
-      if(targetModel == null) {
-        return;
-      }
+    if (targetFacade == null || currentFacade == null) {
+      return;
     }
+    boolean same = targetPOM.equals(currentPOM);
 
-    LinkedList<Dependency> dependencies = getDependenciesList();
-
-    /*
-     * 1) Remove version values from the dependencies from the current POM
-     * 2) Add dependencies to dependencyManagement of targetPOM
-     */
-
-    CompoundCommand command = new CompoundCommand();
-
-    //First we remove the version from the original dependency
-    for(Dependency dep : dependencies) {
-      Command unset = SetCommand.create(editingDomain, dep, PomPackage.eINSTANCE.getDependency_Version(),
-          SetCommand.UNSET_VALUE);
-      command.append(unset);
-    }
-
-    DependencyManagement management = targetModel.getDependencyManagement();
-    if(management == null) {
-      //Add dependency management element if it does not exist
-      management = PomFactory.eINSTANCE.createDependencyManagement();
-      Command createDepManagement = SetCommand.create(editingDomain, targetModel,
-          PomPackage.eINSTANCE.getModel_DependencyManagement(), management);
-      command.append(createDepManagement);
-    } else {
-      //Filter out of the  list of dependencies for which we need new entries in the dependency management section. 
-      for(Dependency depFromTarget : management.getDependencies()) {
-        Iterator<Dependency> iter = dependencies.iterator();
-        while(iter.hasNext()) {
-          Dependency depFromSource = iter.next();
-          if(depFromSource.getGroupId().equals(depFromTarget.getGroupId())
-              && depFromSource.getArtifactId().equals(depFromTarget.getArtifactId())) {
-            /* 
-             * Dependency already exists in the target's dependencyManagement,
-             * so we don't need to add it.
-             */
-            iter.remove();
-            //TODO: mkleint: what if the existing managed version differs from the version in the child pom?
+    final LinkedList<Dependency> modelDeps = getDependenciesList();
+    
+    PomEdits.Operation removeVersionsOperation = new PomEdits.Operation() {
+      public void process(Document document) {
+        //we assume <dependencies> element exists here..
+        List<Element> dependencies = PomEdits.findDependencies(document.getDocumentElement());
+        assert dependencies != null;
+        for (Element dep : dependencies) {
+          String artifactId = PomEdits.getTextValue(PomEdits.findChild(dep, "artifactId"));
+          String groupId = PomEdits.getTextValue(PomEdits.findChild(dep, "groupId"));
+          //TODO: mkleint: nested cycles are ugly..
+          for (Dependency md : modelDeps) {
+            if (artifactId.equals(md.getArtifactId()) && groupId.equals(md.getGroupId())) {
+              PomEdits.removeChild(dep, "version");
+              break;
+            }
           }
         }
       }
-    }
-
-    //Add new entry in dependency mgt section 
-    for(Dependency dep : dependencies) {
-      Dependency clone = PomFactory.eINSTANCE.createDependency();
-      clone.setGroupId(dep.getGroupId());
-      clone.setArtifactId(dep.getArtifactId());
-      clone.setVersion(dep.getVersion());
-
-      Command addDepCommand = AddCommand.create(editingDomain, management,
-          PomPackage.eINSTANCE.getDependencyManagement_Dependencies(), clone);
-
-      command.append(addDepCommand);
-    }
-    editingDomain.getCommandStack().execute(command);
-
-  }
-
-  protected Model loadTargetModel(IMavenProjectFacade facade) {
+    };
+    
+    PomEdits.Operation manageOperation = new PomEdits.Operation() {
+      public void process(Document document) {
+        Element mands = PomEdits.getManagedDependencies(document.getDocumentElement());
+        List<Dependency> modelDependencies = new ArrayList<Dependency>(modelDeps);
+        List<Element> existing = PomEdits.findChilds(mands, "dependency");
+        if (existing != null) {
+          for (Element dep : existing) {
+            String artifactId = PomEdits.getTextValue(PomEdits.findChild(dep, "artifactId"));
+            String groupId = PomEdits.getTextValue(PomEdits.findChild(dep, "groupId"));
+            //TODO: mkleint: nested cycles are ugly..
+            //clone list, shall not modify shared resource (used by the remove operation)
+            Iterator<Dependency> mdIter = modelDependencies.iterator();
+            while (mdIter.hasNext()) {
+              //TODO: here we iterate to find existing managed dependencies and decide not to overwrite them.
+              // but this could eventually break the current project when the versions are diametrally different
+              // we should have shown this information to the user in the UI in the first place (for him to decide what to do)
+              Dependency md = mdIter.next();
+              if (artifactId.equals(md.getArtifactId()) && groupId.equals(md.getGroupId())) {
+                mdIter.remove();
+                break;
+              }
+            }
+          }
+        }
+        for (Dependency md : modelDependencies) {
+          PomEdits.createDependency(mands, md.getGroupId(), md.getArtifactId(), md.getVersion());
+        }
+      }
+    };
+    
     try {
-      PomResourceImpl resource = MavenPlugin.getDefault().getMavenModelManager().loadResource(facade.getPom());
-      resource.load(Collections.EMPTY_MAP);
-      return resource.getModel();
-    } catch(Exception e) {
-      MavenLogger.log("Can't load model " + facade.getPomFile().getPath(), e); //$NON-NLS-1$
-      return null;
+      if (same) {
+        PomEdits.performOnDOMDocument(currentFacade.getPom(), new PomEdits.CompoundOperation(manageOperation, removeVersionsOperation));
+      } else {
+        PomEdits.performOnDOMDocument(targetFacade.getPom(), manageOperation);
+        PomEdits.performOnDOMDocument(currentFacade.getPom(), removeVersionsOperation);
+      }
+    } catch(IOException e) {
+      MavenLogger.log("", e);
+    } catch(CoreException e) {
+      MavenLogger.log(e);
     }
   }
 
