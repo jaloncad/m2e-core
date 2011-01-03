@@ -300,10 +300,10 @@ public class ManageDependenciesDialog extends AbstractMavenDialog {
     
     try {
       if (same) {
-        PomEdits.performOnDOMDocument(currentFacade.getPom(), new PomEdits.CompoundOperation(manageOperation, removeVersionsOperation));
+        PomEdits.performOnDOMDocument(new PomEdits.OperationTuple(currentFacade.getPom(), new PomEdits.CompoundOperation(manageOperation, removeVersionsOperation)));
       } else {
-        PomEdits.performOnDOMDocument(targetFacade.getPom(), manageOperation);
-        PomEdits.performOnDOMDocument(currentFacade.getPom(), removeVersionsOperation);
+        PomEdits.performOnDOMDocument(new PomEdits.OperationTuple(targetFacade.getPom(), manageOperation), 
+                                      new PomEdits.OperationTuple(currentFacade.getPom(), removeVersionsOperation));
       }
     } catch(IOException e) {
       MavenLogger.log("", e);

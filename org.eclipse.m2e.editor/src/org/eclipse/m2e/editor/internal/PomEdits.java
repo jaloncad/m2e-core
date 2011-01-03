@@ -1,13 +1,30 @@
 package org.eclipse.m2e.editor.internal;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.commands.ExecutionException;
+import org.eclipse.core.commands.operations.AbstractOperation;
+import org.eclipse.core.commands.operations.IUndoContext;
+import org.eclipse.core.commands.operations.IUndoableOperation;
+import org.eclipse.core.commands.operations.ObjectUndoContext;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.jface.text.DocumentEvent;
+import org.eclipse.jface.text.IDocumentListener;
 import org.eclipse.m2e.core.internal.project.MavenMarkerManager;
+import org.eclipse.m2e.editor.internal.PomEdits.Operation;
+import org.eclipse.text.undo.DocumentUndoManagerRegistry;
+import org.eclipse.text.undo.IDocumentUndoManager;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.wst.sse.core.StructuredModelManager;
 import org.eclipse.wst.sse.core.internal.format.IStructuredFormatProcessor;
+import org.eclipse.wst.sse.core.internal.provisional.text.IStructuredDocument;
 import org.eclipse.wst.sse.core.internal.undo.IStructuredTextUndoManager;
 import org.eclipse.wst.xml.core.internal.provisional.document.IDOMModel;
 import org.eclipse.wst.xml.core.internal.provisional.format.FormatProcessorXML;
@@ -142,32 +159,53 @@ public class PomEdits {
    * @throws IOException
    * @throws CoreException
    */
-  public static void performOnDOMDocument(IFile file, PomEdits.Operation operation) throws IOException, CoreException {
-    assert file != null;
-    assert operation != null;
-    IDOMModel domModel = null;
-    //TODO we might want to attempt iterating opened editors and somehow initialize those
-    // that were not yet initialized. Then we could avoid saving a file that is actually opened, but was never used so far (after restart)
-    try {
-      domModel = (IDOMModel) StructuredModelManager.getModelManager().getModelForEdit(file);
-      domModel.aboutToChangeModel();
+  public static void performOnDOMDocument(PomEdits.OperationTuple... fileOperations) throws IOException, CoreException {
+    for(OperationTuple tuple : fileOperations) {
+      IDOMModel domModel = null;
+      //TODO we might want to attempt iterating opened editors and somehow initialize those
+      // that were not yet initialized. Then we could avoid saving a file that is actually opened, but was never used so far (after restart)
+      try {
+        domModel = (IDOMModel) StructuredModelManager.getModelManager().getModelForEdit(tuple.getFile());
+        domModel.aboutToChangeModel();
       IStructuredTextUndoManager undo = domModel.getStructuredDocument().getUndoManager();
       undo.beginRecording(domModel);
-      try {
-        operation.process(domModel.getDocument());
-      } finally {
+        try {
+          tuple.getOperation().process(domModel.getDocument());
+        } finally {
         undo.endRecording(domModel);
-        domModel.changedModel();
-      }
-    } finally {
-      if (domModel != null) {
-        //saving shall only happen when the model is not held elsewhere (eg. in opened view)
-        if (domModel.isSaveNeeded() && domModel.getReferenceCountForEdit() == 1) {
-          domModel.save();
+          domModel.changedModel();
         }
-        domModel.releaseFromEdit();
+      } finally {
+        if(domModel != null) {
+          //saving shall only happen when the model is not held elsewhere (eg. in opened view)
+          if(domModel.isSaveNeeded() && domModel.getReferenceCountForEdit() == 1) {
+            domModel.save();
+          }
+          domModel.releaseFromEdit();
+        }
       }
     }
+  }
+  
+  public static final class OperationTuple {
+    private final PomEdits.Operation operation;
+    private final IFile file;
+
+    public OperationTuple(IFile file, PomEdits.Operation operation) {
+      assert file != null;
+      assert operation != null;
+      this.file = file;
+      this.operation = operation;
+    }
+
+    public IFile getFile() {
+      return file;
+    }
+
+    public PomEdits.Operation getOperation() {
+      return operation;
+    }
+  
   }
   
   /**
