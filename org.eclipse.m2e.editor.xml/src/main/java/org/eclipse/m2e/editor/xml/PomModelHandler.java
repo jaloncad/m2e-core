@@ -17,16 +17,24 @@ import java.util.List;
 import org.w3c.dom.Element;
 
 import org.eclipse.wst.common.uriresolver.internal.provisional.URIResolver;
+import org.eclipse.wst.sse.core.internal.document.IDocumentLoader;
 import org.eclipse.wst.sse.core.internal.provisional.IModelLoader;
 import org.eclipse.wst.sse.core.internal.provisional.INodeAdapter;
 import org.eclipse.wst.sse.core.internal.provisional.INodeAdapterFactory;
 import org.eclipse.wst.sse.core.internal.provisional.INodeNotifier;
+import org.eclipse.wst.sse.core.internal.provisional.IStructuredModel;
+import org.eclipse.wst.sse.core.internal.provisional.document.IEncodedDocument;
+import org.eclipse.wst.sse.core.internal.provisional.text.IStructuredDocument;
+import org.eclipse.wst.sse.core.internal.text.BasicStructuredDocument;
+import org.eclipse.wst.sse.core.internal.undo.StructuredTextUndoManager;
 import org.eclipse.wst.xml.core.internal.contentmodel.CMDocument;
 import org.eclipse.wst.xml.core.internal.contentmodel.CMElementDeclaration;
 import org.eclipse.wst.xml.core.internal.contentmodel.modelquery.CMDocumentManager;
 import org.eclipse.wst.xml.core.internal.contentmodel.modelqueryimpl.ModelQueryImpl;
 import org.eclipse.wst.xml.core.internal.contentmodel.util.CMDocumentCache;
 import org.eclipse.wst.xml.core.internal.contentmodel.util.NamespaceTable;
+import org.eclipse.wst.xml.core.internal.document.DOMModelImpl;
+import org.eclipse.wst.xml.core.internal.encoding.XMLDocumentLoader;
 import org.eclipse.wst.xml.core.internal.modelhandler.ModelHandlerForXML;
 import org.eclipse.wst.xml.core.internal.modelhandler.XMLModelLoader;
 import org.eclipse.wst.xml.core.internal.modelquery.ModelQueryAdapterFactoryForXML;
@@ -39,7 +47,9 @@ import org.eclipse.wst.xml.core.internal.ssemodelquery.ModelQueryAdapterImpl;
 @SuppressWarnings("restriction")
 public class PomModelHandler extends ModelHandlerForXML {
 
-  private static final String ASSOCIATED_CONTENT_TYPE_ID = "org.eclipse.m2e.pomFile"; //$NON-NLS-1$
+  private static final String HANDLER_ID = "org.eclipse.m2e.core.pomFile.handler";
+
+  private static final String ASSOCIATED_CONTENT_TYPE_ID = "org.eclipse.m2e.core.pomFile"; //$NON-NLS-1$
 
   private static final String POM_NAMESPACE = "http://maven.apache.org/POM/4.0.0"; //$NON-NLS-1$
 
@@ -47,6 +57,7 @@ public class PomModelHandler extends ModelHandlerForXML {
 
   public PomModelHandler() {
     super();
+    setId(HANDLER_ID);
     setAssociatedContentTypeId(ASSOCIATED_CONTENT_TYPE_ID);
   }
 
@@ -55,6 +66,15 @@ public class PomModelHandler extends ModelHandlerForXML {
     return new PomModelLoader();
   }
 
+  
+  /* (non-Javadoc)
+   * @see org.eclipse.wst.xml.core.internal.modelhandler.ModelHandlerForXML#getDocumentLoader()
+   */
+  @Override
+  public IDocumentLoader getDocumentLoader() {
+    return new PomXMLDocumentLoader();
+  }
+  
   private static class PomModelLoader extends XMLModelLoader {
 
     @SuppressWarnings("unchecked")
@@ -66,8 +86,48 @@ public class PomModelHandler extends ModelHandlerForXML {
       return result;
     }
 
+    /* (non-Javadoc)
+     * @see org.eclipse.wst.xml.core.internal.modelhandler.XMLModelLoader#getDocumentLoader()
+     */
+    @Override
+    public IDocumentLoader getDocumentLoader() {
+      if (documentLoaderInstance == null) {
+        documentLoaderInstance = new PomXMLDocumentLoader();
+      }
+      return super.getDocumentLoader();
+    }
+    
+    public IStructuredModel newModel() {
+      return new DOMModelImpl();
+    }    
   }
+  
+  private static class PomXMLDocumentLoader extends XMLDocumentLoader {
 
+    /* (non-Javadoc)
+     * @see org.eclipse.wst.xml.core.internal.encoding.XMLDocumentLoader#newEncodedDocument()
+     */
+    @Override
+    protected IEncodedDocument newEncodedDocument() {
+      IEncodedDocument doc = super.newEncodedDocument();
+      if (doc instanceof BasicStructuredDocument) {
+        BasicStructuredDocument bsd = (BasicStructuredDocument) doc;
+        System.out.println("setting undo manager");
+        bsd.setUndoManager(new StructuredTextUndoManager());
+      }
+      return doc;
+    }
+
+    /* (non-Javadoc)
+     * @see org.eclipse.wst.xml.core.internal.encoding.XMLDocumentLoader#newInstance()
+     */
+    @Override
+    public IDocumentLoader newInstance() {
+      return new PomXMLDocumentLoader();
+    }
+    
+  }
+  
   static class ModelQueryAdapterFactoryForPom extends ModelQueryAdapterFactoryForXML {
 
     protected ModelQueryAdapterImpl modelQueryAdapterImpl;

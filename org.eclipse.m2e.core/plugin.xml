@@ -35,6 +35,15 @@
        <describer class="org.eclipse.m2e.core.internal.content.PomFileContentDescriber"/>
      </content-type>
    </extension>
+   
+	<extension
+		point="org.eclipse.core.filebuffers.documentCreation"
+		id="org.eclipse.m2e.core.documentfactories"
+		name="POM file document creation">
+		<factory
+			contentTypeId="org.eclipse.m2e.core.pomFile"
+			class="org.eclipse.wst.sse.core.internal.filebuffers.BasicStructuredDocumentFactory" />
+	</extension>   
 
    <extension point="org.eclipse.core.resources.builders"
               id="maven2Builder"
