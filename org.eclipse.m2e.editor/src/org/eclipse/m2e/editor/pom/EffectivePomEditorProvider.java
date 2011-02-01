@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (c) 2008-2010 Sonatype, Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
+ *
+ * Contributors:
+ *      Sonatype, Inc. - initial API and implementation
+ *******************************************************************************/
+
 package org.eclipse.m2e.editor.pom;
 
 import java.io.IOException;
@@ -16,6 +27,11 @@ import org.eclipse.wst.sse.ui.StructuredTextEditor;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 
+/**
+ * intended to be called by the pom editor only.
+ * @author mkleint
+ *
+ */
 public final class EffectivePomEditorProvider {
   
   private EffectivePomEditorProvider() {
@@ -79,7 +95,11 @@ public final class EffectivePomEditorProvider {
   }
   
 
-  
+  /**
+   * spi to be implemented by external plugin. only one such implementation is expected at a time.
+   * @author mkleint
+   *
+   */
   public interface Implementation {
     
     IEditorInput createEditorInput(MavenProject project, String name);
