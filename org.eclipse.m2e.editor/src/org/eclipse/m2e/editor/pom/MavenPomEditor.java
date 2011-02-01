@@ -534,18 +534,7 @@ public class MavenPomEditor extends FormEditor implements IResourceChangeListene
           showEffectivePomError(name);
           return Status.CANCEL_STATUS;
         }
-        IEditorInput editorInput = EffectivePomEditorProvider.createEditorInput(mavenProject, name);
-        if (editorInput == null) {
-          try{
-            StringWriter sw = new StringWriter();
-            new MavenXpp3Writer().write(sw, mavenProject.getModel());
-            final String content = sw.toString();
-            editorInput = new MavenStorageEditorInput(name, name, null, content.getBytes("UTF-8")); //$NON-NLS-1$
-          }catch(IOException ie){
-            MavenLogger.log(new Status(IStatus.ERROR, MavenEditorPlugin.PLUGIN_ID, -1, Messages.MavenPomEditor_error_failed_effective, ie));
-          }
-        }
-        final IEditorInput fEditorInput = editorInput;
+        final IEditorInput fEditorInput = EffectivePomEditorProvider.createEditorInput(mavenProject, name);;
         Display.getDefault().asyncExec(new Runnable(){
           public void run() {
               effectivePomSourcePage.setInput(fEditorInput);
@@ -680,9 +669,6 @@ public class MavenPomEditor extends FormEditor implements IResourceChangeListene
     sourcePage.setEditorPart(this);
     //the page for showing the effective POM
     effectivePomSourcePage = EffectivePomEditorProvider.createTextEditor();
-    if (effectivePomSourcePage == null) {
-      effectivePomSourcePage = new StructuredTextEditor();
-    }
     effectivePomSourcePage.setEditorPart(this);
     try {
       int dex = addPage(effectivePomSourcePage, getEditorInput());
