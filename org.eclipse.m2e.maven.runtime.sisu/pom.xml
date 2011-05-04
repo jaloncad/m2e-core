@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (c) 2008 Sonatype, Inc.
+  All rights reserved. This program and the accompanying materials
+  are made available under the terms of the Eclipse Public License v1.0
+  which accompanies this distribution, and is available at
+  http://www.eclipse.org/legal/epl-v10.html
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.eclipse.m2e</groupId>
+    <artifactId>org.eclipse.m2e.parent</artifactId>
+    <version>0.13.0-SNAPSHOT</version>
+    <relativePath>../org.eclipse.m2e.parent</relativePath>
+  </parent>
+
+  <artifactId>org.eclipse.m2e.maven.runtime.sisu</artifactId>
+
+  <properties>
+    <sisu.version>2.0.0</sisu.version>
+    <classworlds.version>2.4</classworlds.version>
+    <sisu-guice.version>2.9.4</sisu-guice.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.sonatype.sisu.inject</groupId>
+      <artifactId>guice-plexus-shim</artifactId>
+      <version>${sisu.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.sonatype.sisu</groupId>
+          <artifactId>sisu-guice</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.sonatype.sisu</groupId>
+      <artifactId>sisu-guice</artifactId>
+      <version>${sisu-guice.version}</version>
+      <classifier>no_aop</classifier>
+    </dependency>
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.codehaus.plexus</groupId>
+        <artifactId>plexus-classworlds</artifactId>
+        <version>${classworlds.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>2.3.5-SNAPSHOT</version>
+        <executions>
+          <execution>
+            <id>bundle</id>
+            <phase>package</phase>
+            <goals>
+              <goal>bundle</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <instructions>
+            <Embed-Dependency>*;scope=compile</Embed-Dependency>
+            <Embed-Transitive>true</Embed-Transitive>
+            <_exportcontents>
+              com.google.inject.*,
+              org.sonatype.*,
+              org.codehaus.*,
+              javax.*,
+            </_exportcontents>
+            <Import-Package>!junit.framework,*</Import-Package>
+          </instructions>
+          <manifestLocation>META-INF</manifestLocation>
+          <excludeDependencies>aopalliance,plexus-utils</excludeDependencies>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

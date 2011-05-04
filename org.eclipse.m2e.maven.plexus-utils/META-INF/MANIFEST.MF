@@ -1,0 +1,16 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Plexus-utils
+Bundle-SymbolicName: org.eclipse.m2e.maven.runtime.plexus-utils
+Bundle-Version: 1.0.0.qualifier
+Bundle-RequiredExecutionEnvironment: J2SE-1.5
+Bundle-ClassPath: jars/plexus-utils-2.0.6.jar
+Export-Package: org.codehaus.plexus.util,
+ org.codehaus.plexus.util.cli,
+ org.codehaus.plexus.util.cli.shell,
+ org.codehaus.plexus.util.dag,
+ org.codehaus.plexus.util.introspection,
+ org.codehaus.plexus.util.io,
+ org.codehaus.plexus.util.reflection,
+ org.codehaus.plexus.util.xml,
+ org.codehaus.plexus.util.xml.pull
