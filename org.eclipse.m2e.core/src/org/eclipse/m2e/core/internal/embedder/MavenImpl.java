@@ -154,6 +154,7 @@ import org.eclipse.m2e.core.internal.IMavenConstants;
 import org.eclipse.m2e.core.internal.MavenPluginActivator;
 import org.eclipse.m2e.core.internal.Messages;
 import org.eclipse.m2e.core.internal.preferences.MavenPreferenceConstants;
+import org.eclipse.m2e.maven.runtime.internal.M2EMavenRuntime;
 
 
 public class MavenImpl implements IMaven, IMavenConfigurationChangeListener {
@@ -1103,7 +1104,7 @@ public class MavenImpl implements IMaven, IMavenConfigurationChangeListener {
 
   private static DefaultPlexusContainer newPlexusContainer() throws PlexusContainerException {
     ContainerConfiguration mavenCoreCC = new DefaultContainerConfiguration().setClassWorld(
-        new ClassWorld(MAVEN_CORE_REALM_ID, ClassWorld.class.getClassLoader())).setName(
+        new ClassWorld(MAVEN_CORE_REALM_ID, M2EMavenRuntime.class.getClassLoader())).setName(
         "mavenCore"); //$NON-NLS-1$
 
     mavenCoreCC.setAutoWiring(true);
