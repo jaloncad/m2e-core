@@ -31,6 +31,7 @@ import org.codehaus.plexus.DefaultContainerConfiguration;
 import org.codehaus.plexus.DefaultPlexusContainer;
 import org.codehaus.plexus.MutablePlexusContainer;
 import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.PlexusContainerException;
 import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 
@@ -409,7 +410,13 @@ public class MavenPluginActivator extends Plugin {
   }
 
   public RepositorySystem getRepositorySystem() {
-    return lookup(RepositorySystem.class);
+    try {
+      return maven.getPlexusContainerImpl().lookup(RepositorySystem.class);
+    } catch(ComponentLookupException ex) {
+      throw new NoSuchComponentException(ex);
+    } catch(PlexusContainerException ex) {
+      throw new NoSuchComponentException(ex);
+    }
   }
 
   public MavenSession setSession(MavenSession session) {

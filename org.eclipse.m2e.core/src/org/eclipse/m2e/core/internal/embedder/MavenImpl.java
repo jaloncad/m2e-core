@@ -31,11 +31,14 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.inject.Module;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.osgi.util.NLS;
 
@@ -144,6 +147,9 @@ import org.sonatype.aether.resolution.ArtifactResult;
 import org.sonatype.aether.transfer.ArtifactNotFoundException;
 import org.sonatype.aether.transfer.TransferListener;
 import org.sonatype.aether.util.FilterRepositorySystemSession;
+import org.sonatype.guice.bean.reflect.BundleClassSpace;
+import org.sonatype.guice.bean.reflect.ClassSpace;
+import org.sonatype.guice.plexus.binders.PlexusXmlBeanModule;
 
 import org.eclipse.m2e.core.embedder.ILocalRepositoryListener;
 import org.eclipse.m2e.core.embedder.IMaven;
@@ -1042,15 +1048,19 @@ public class MavenImpl implements IMaven, IMavenConfigurationChangeListener {
     return new ArtifactTransferListenerAdapter(this, monitor);
   }
 
-  public synchronized PlexusContainer getPlexusContainer() throws CoreException {
+  public PlexusContainer getPlexusContainer() throws CoreException {
+    try {
+      return getPlexusContainerImpl();
+    } catch(PlexusContainerException ex) {
+      throw new CoreException(new Status(IStatus.ERROR, IMavenConstants.PLUGIN_ID, -1,
+          Messages.MavenImpl_error_init_maven, ex));
+    }
+  }
+
+  public synchronized PlexusContainer getPlexusContainerImpl() throws PlexusContainerException {
     if(plexus == null) {
-      try {
-        plexus = newPlexusContainer();
-        plexus.setLoggerManager(new EclipseLoggerManager(mavenConfiguration));
-      } catch(PlexusContainerException ex) {
-        throw new CoreException(new Status(IStatus.ERROR, IMavenConstants.PLUGIN_ID, -1,
-            Messages.MavenImpl_error_init_maven, ex));
-      }
+      plexus = newPlexusContainer();
+      plexus.setLoggerManager(new EclipseLoggerManager(mavenConfiguration));
     }
     return plexus;
   }
@@ -1107,13 +1117,14 @@ public class MavenImpl implements IMaven, IMavenConfigurationChangeListener {
   }
 
   private static DefaultPlexusContainer newPlexusContainer() throws PlexusContainerException {
-    ContainerConfiguration mavenCoreCC = new DefaultContainerConfiguration().setClassWorld(
-        new ClassWorld(MAVEN_CORE_REALM_ID, M2EMavenRuntime.class.getClassLoader())).setName(
-        "mavenCore"); //$NON-NLS-1$
+    ArrayList<Module> modules = new ArrayList<Module>();
 
-    mavenCoreCC.setAutoWiring(true);
-
-    return new DefaultPlexusContainer(mavenCoreCC, new ExtensionModule());
+    List<ClassSpace> spaces = new ArrayList<ClassSpace>();
+    spaces.add(new BundleClassSpace(Platform.getBundle("org.eclipse.m2e.maven.runtime.aether")));
+    spaces.add(new BundleClassSpace(Platform.getBundle("org.eclipse.m2e.maven.runtime.maven-core")));
+    spaces.add(new BundleClassSpace(Platform.getBundle("org.eclipse.m2e.maven.runtime.sisu")));
+    
+    return M2EMavenRuntime.newPlexusContainer(MAVEN_CORE_REALM_ID, spaces, new ExtensionModule());
   }
 
   public synchronized void disposeContainer() {

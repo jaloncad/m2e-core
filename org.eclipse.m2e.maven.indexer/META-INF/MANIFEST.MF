@@ -34,8 +34,7 @@ Bundle-ClassPath: local-patches.jar,
 Bundle-Name: %Bundle-Name
 Bundle-RequiredExecutionEnvironment: J2SE-1.5,
  JavaSE-1.6
-Require-Bundle: org.eclipse.m2e.maven.runtime;bundle-version="[0.13.0,0.14.0)",
- org.eclipse.m2e.archetype.common;bundle-version="[0.13.0,0.14.0)"
+Require-Bundle: org.eclipse.m2e.archetype.common;bundle-version="[0.13.0,0.14.0)"
 Bundle-Vendor: %Bundle-Vendor
 MavenArtifact-BaseVersion: 2.0.4-SNAPSHOT
 Bundle-Version: 0.13.0.qualifier
@@ -43,4 +42,23 @@ MavenArtifact-GroupId: org.eclipse.m2e
 MavenArtifact-ArtifactId: org.eclipse.m2e.maven.indexer
 Bundle-ManifestVersion: 2
 Bundle-SymbolicName: org.eclipse.m2e.maven.indexer;singleton:=true
+Import-Package: org.apache.maven.artifact.versioning,
+ org.apache.maven.model,
+ org.apache.maven.wagon,
+ org.apache.maven.wagon.authentication,
+ org.apache.maven.wagon.authorization,
+ org.apache.maven.wagon.events,
+ org.apache.maven.wagon.proxy,
+ org.apache.maven.wagon.repository,
+ org.codehaus.plexus,
+ org.codehaus.plexus.classworlds,
+ org.codehaus.plexus.component.annotations,
+ org.codehaus.plexus.component.repository.exception,
+ org.codehaus.plexus.configuration,
+ org.codehaus.plexus.configuration.xml,
+ org.codehaus.plexus.logging,
+ org.codehaus.plexus.util,
+ org.codehaus.plexus.util.io,
+ org.codehaus.plexus.util.xml,
+ org.codehaus.plexus.util.xml.pull
 
