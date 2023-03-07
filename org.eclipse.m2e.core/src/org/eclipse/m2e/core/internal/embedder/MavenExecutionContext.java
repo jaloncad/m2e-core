@@ -326,7 +326,7 @@ public class MavenExecutionContext implements IMavenExecutionContext {
       artifacts.put(project, new LinkedHashSet<>(project.getArtifacts()));
       snapshots.put(project, MavenProjectMutableState.takeSnapshot(project));
     }
-    MojoExecution clone = new MojoExecution(execution.getPlugin(), execution.getGoal(), execution.getExecutionId());
+    MojoExecution clone = cloneMojoExecution(execution);
     try {
       MavenProject currentProject = session.getCurrentProject();
       LifecycleExecutionPlanCalculator executionPlanCalculator = lookup.lookup(LifecycleExecutionPlanCalculator.class);
@@ -349,6 +349,22 @@ public class MavenExecutionContext implements IMavenExecutionContext {
         }
       }
     }
+  }
+
+  private static MojoExecution cloneMojoExecution(MojoExecution execution) {
+    var descriptor = execution.getMojoDescriptor();
+    MojoExecution clone;
+    if(descriptor == null) {
+      clone = new MojoExecution(execution.getPlugin(), execution.getGoal(), execution.getExecutionId());
+    } else {
+      clone = new MojoExecution(descriptor, execution.getExecutionId(), execution.getSource());
+    }
+    clone.setConfiguration(execution.getConfiguration());
+    clone.setLifecyclePhase(execution.getLifecyclePhase());
+    execution.getForkedExecutions().forEach((k, v) -> {
+      clone.setForkedExecutions(k, v);
+    });
+    return clone;
   }
 
   private <V> V executeBare(MavenProject project, ICallable<V> callable, IProgressMonitor monitor)
